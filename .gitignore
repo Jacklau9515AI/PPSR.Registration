@@ -1,0 +1,64 @@
+# ===============================
+# Frontend (Vite + React + TS)
+# ===============================
+clientnode_modules
+clientdist
+client.env
+client.DS_Store
+client.eslintcache
+
+# Vite dev server cache
+client.vite
+
+# Log files
+clientnpm-debug.log
+clientyarn-debug.log
+clientyarn-error.log
+clientpnpm-debug.log
+
+# EditorOS files
+client.idea
+client.vscode
+client.log
+
+# Tailwind generated files (if any)
+clientpostcss.config.cjs
+clienttailwind.config.js
+
+# ===============================
+# Backend (.NET)
+# ===============================
+servicesbin
+servicesobj
+services.vs
+services.vscode
+services.DS_Store
+
+# Build output
+servicesTestResults
+services.user
+services.suo
+services.userosscache
+services.sln.docstates
+
+# Environment
+services.env
+services.secrets
+servicesappsettings.Development.json
+
+# Rider  VS Code  Visual Studio
+.idea
+.sln.iml
+.vscode
+.vs
+
+# Dotnet temp files
+.dotCover
+
+# ===============================
+# Root level
+# ===============================
+.env
+.log
+.DS_Store
+.swp
