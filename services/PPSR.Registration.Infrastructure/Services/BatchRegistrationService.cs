@@ -3,7 +3,6 @@ using PPSR.Registration.Application.DTOs;
 using PPSR.Registration.Application.Interfaces;
 using PPSR.Registration.Domain.Entities;
 using PPSR.Registration.Domain.Enums;
-using PPSR.Registration.Infrastructure.Persistence;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -15,11 +14,11 @@ namespace PPSR.Registration.Infrastructure.Services
 {
     public class BatchRegistrationService : IBatchRegistrationService
     {
-        private readonly PpsrDbContext _context;
+        private readonly IRegistrationRepository _repository;
 
-        public BatchRegistrationService(PpsrDbContext context)
+        public BatchRegistrationService(IRegistrationRepository repository)
         {
-            _context = context;
+            _repository = repository;
         }
 
         public async Task<BatchUploadResult> ProcessCsvUploadAsync(Stream csvFileStream, CancellationToken cancellationToken)
@@ -55,23 +54,25 @@ namespace PPSR.Registration.Infrastructure.Services
                         SpgOrganizationName = columns[7].Trim()
                     };
 
-                    var existing = await _context.Registrations.FirstOrDefaultAsync(x =>
-                        x.VIN == dto.VIN &&
-                        x.SpgAcn == dto.SpgAcn &&
-                        x.GrantorFirstName == dto.GrantorFirstName &&
-                        x.GrantorLastName == dto.GrantorLastName,
-                        cancellationToken);
-
-                    if (existing != null)
+                    var existing = await _repository.FindByVinAsync(dto.VIN, cancellationToken);
+                    
+                    if (existing != null &&
+                        existing.GrantorFirstName == dto.GrantorFirstName &&
+                        existing.GrantorLastName == dto.GrantorLastName &&
+                        existing.SpgAcn == dto.SpgAcn)
                     {
+                        // Update path
                         existing.RegistrationStartDate = dto.RegistrationStartDate.Date;
                         existing.Duration = ConvertToEnum(dto.RegistrationDurationRaw);
                         existing.GrantorMiddleNames = dto.GrantorMiddleNames;
                         existing.SpgOrganizationName = dto.SpgOrganizationName;
+
+                        await _repository.UpdateAsync(existing, cancellationToken);
                         result.UpdatedRecords++;
                     }
                     else
                     {
+                        // Add path
                         var newRecord = new PpsrRegistration
                         {
                             GrantorFirstName = dto.GrantorFirstName,
@@ -83,7 +84,8 @@ namespace PPSR.Registration.Infrastructure.Services
                             SpgAcn = dto.SpgAcn,
                             SpgOrganizationName = dto.SpgOrganizationName
                         };
-                        await _context.Registrations.AddAsync(newRecord, cancellationToken);
+
+                        await _repository.AddAsync(newRecord, cancellationToken);
                         result.AddedRecords++;
                     }
                 }
@@ -93,8 +95,14 @@ namespace PPSR.Registration.Infrastructure.Services
                 }
             }
 
-            result.SubmittedRecords = lineIndex - 1;
-            await _context.SaveChangesAsync(cancellationToken);
+            if (lineIndex == 0)
+            {
+                result.SubmittedRecords = 0;
+            }
+            else
+            {
+                result.SubmittedRecords = lineIndex - 1;
+            }
             return result;
         }
 

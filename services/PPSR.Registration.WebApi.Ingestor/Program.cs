@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using PPSR.Registration.Application.Interfaces;
 using PPSR.Registration.Infrastructure.Persistence;
+using PPSR.Registration.Infrastructure.Repositories;
 using PPSR.Registration.Infrastructure.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,7 +12,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddDbContext<PpsrDbContext>(options =>
     options.UseInMemoryDatabase("PpsrDb"));
 
-// Register your services
+// Register repository and service
+builder.Services.AddScoped<IRegistrationRepository, RegistrationRepository>();
 builder.Services.AddScoped<IBatchRegistrationService, BatchRegistrationService>();
 
 // Add Controllers
