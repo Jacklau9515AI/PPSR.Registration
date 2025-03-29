@@ -12,5 +12,6 @@ namespace PPSR.Registration.Application.Interfaces
         Task<PpsrRegistration?> FindByVinAsync(string vin, CancellationToken cancellationToken);
         Task AddAsync(PpsrRegistration registration, CancellationToken cancellationToken);
         Task UpdateAsync(PpsrRegistration registration, CancellationToken cancellationToken);
+        Task<PpsrRegistration?> FindByUniqueKeyAsync(string vin, string firstName, string lastName, string spgAcn, CancellationToken cancellationToken);
     }
 }

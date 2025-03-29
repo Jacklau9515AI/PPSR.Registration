@@ -11,8 +11,8 @@ namespace PPSR.Registration.Test.Ingestor.Mocks
         public static Stream ValidSingleRow()
         {
             var csv = new StringBuilder();
-            csv.AppendLine("Grantor First Name,Grantor Middle Names,Grantor Last Name,VIN,Registration Start Date,Registration Duration,SPG ACN,SPG Org Name");
-            csv.AppendLine("John,,Smith,ABC1234567890,2025-01-01,7,123456789,New Org Pty Ltd");
+            csv.AppendLine("Grantor First Name,Grantor Middle Names,Grantor Last Name,VIN,Registration start date,Registration duration,SPG ACN,SPG Organization Name");
+            csv.AppendLine("John,,Smith,ABC1234567890,2025-01-01,7,123456789,Company A");
             return ToStream(csv.ToString());
         }
 
@@ -28,9 +28,9 @@ namespace PPSR.Registration.Test.Ingestor.Mocks
         public static Stream WithInvalidRow()
         {
             var csv = new StringBuilder();
-            csv.AppendLine("Grantor First Name,Grantor Middle Names,Grantor Last Name,VIN,Registration Start Date,Registration Duration,SPG ACN,SPG Org Name");
-            csv.AppendLine("John,,Smith,ABC1234567890,2025-01-01,7,123456789,New Org Pty Ltd"); // valid
-            csv.AppendLine(",,Smith,ABC1234567890,,,123456789");                                // invalid
+            csv.AppendLine("Grantor First Name,Grantor Middle Names,Grantor Last Name,VIN,Registration start date,Registration duration,SPG ACN,SPG Organization Name");
+            csv.AppendLine("John,,Smith,ABC1234567890,2025-01-01,7,123456789,Company A"); //valid
+            csv.AppendLine(",,,ABC1234567890,invalid-date,,123456789,");                //invalid
             return ToStream(csv.ToString());
         }
 

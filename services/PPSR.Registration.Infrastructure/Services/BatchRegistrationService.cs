@@ -1,14 +1,14 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using CsvHelper;
+using CsvHelper.Configuration;
+using Microsoft.EntityFrameworkCore;
 using PPSR.Registration.Application.DTOs;
 using PPSR.Registration.Application.Interfaces;
 using PPSR.Registration.Domain.Entities;
 using PPSR.Registration.Domain.Enums;
-using System;
-using System.Collections.Generic;
+using System.Formats.Asn1;
 using System.Globalization;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
+using System.Text.RegularExpressions;
 
 namespace PPSR.Registration.Infrastructure.Services
 {
@@ -25,46 +25,68 @@ namespace PPSR.Registration.Infrastructure.Services
         {
             var result = new BatchUploadResult();
             using var reader = new StreamReader(csvFileStream);
-            var lineIndex = 0;
 
-            while (!reader.EndOfStream)
+            var config = new CsvConfiguration(CultureInfo.InvariantCulture)
             {
-                var line = await reader.ReadLineAsync(cancellationToken);
-                if (lineIndex++ == 0 || string.IsNullOrWhiteSpace(line)) continue; // Skip header
+                HasHeaderRecord = true,
+                TrimOptions = TrimOptions.Trim,
+                MissingFieldFound = null,
+                BadDataFound = null,
+            };
 
-                var columns = line.Split(',');
+            using var csv = new CsvReader(reader, config);
+            var records = csv.GetRecords<dynamic>().ToList();
 
-                if (columns.Length < 8)
-                {
-                    result.InvalidRecords++;
-                    continue;
-                }
+            int line = 1;
 
+            foreach (var record in records)
+            {
+                line++;
                 try
                 {
+                    var row = (IDictionary<string, object>)record;
+
+                    var originalVin = row["VIN"]?.ToString();
+                    var originalAcn = row["SPG ACN"]?.ToString();
+
+                    var normalizedVin = NormalizeVin(originalVin);
+                    var normalizedAcn = NormalizeAcn(originalAcn);
+
                     var dto = new PpsrCsvUploadDto
                     {
-                        GrantorFirstName = columns[0].Trim(),
-                        GrantorMiddleNames = string.IsNullOrWhiteSpace(columns[1]) ? null : columns[1].Trim(),
-                        GrantorLastName = columns[2].Trim(),
-                        VIN = columns[3].Trim(),
-                        RegistrationStartDate = ParseDate(columns[4].Trim()),
-                        RegistrationDurationRaw = ParseDurationRaw(columns[5].Trim()),
-                        SpgAcn = columns[6].Trim().Replace(" ", ""),
-                        SpgOrganizationName = columns[7].Trim()
+                        GrantorFirstName = CleanName(row["Grantor First Name"]?.ToString()),
+                        GrantorMiddleNames = string.IsNullOrWhiteSpace(row["Grantor Middle Names"]?.ToString())
+                         ? null : CleanName(row["Grantor Middle Names"]?.ToString()),
+                        GrantorLastName = CleanName(row["Grantor Last Name"]?.ToString()),
+                        VIN = NormalizeVin(row["VIN"]?.ToString()),
+                        RegistrationStartDate = ParseDateSmart(row["Registration start date"]?.ToString() ?? throw new("Missing start date")),
+                        RegistrationDurationRaw = ParseDurationRaw(row["Registration duration"]?.ToString()),
+                        SpgAcn = NormalizeAcn(row["SPG ACN"]?.ToString()),
+                        SpgOrganizationName = row["SPG Organization Name"]?.ToString()?.Trim() ?? ""
                     };
 
-                    var existing = await _repository.FindByVinAsync(dto.VIN, cancellationToken);
-                    
-                    if (existing != null &&
-                        existing.GrantorFirstName == dto.GrantorFirstName &&
-                        existing.GrantorLastName == dto.GrantorLastName &&
-                        existing.SpgAcn == dto.SpgAcn)
+                    if (string.IsNullOrWhiteSpace(dto.VIN) || string.IsNullOrWhiteSpace(dto.GrantorFirstName) || string.IsNullOrWhiteSpace(dto.GrantorLastName))
                     {
-                        // Update path
-                        existing.RegistrationStartDate = dto.RegistrationStartDate.Date;
-                        existing.Duration = ConvertToEnum(dto.RegistrationDurationRaw);
+                        result.InvalidRecords++;
+                        result.WarningMessages.Add($"Line {line}: Missing required fields (VIN or Grantor names)");
+                        continue;
+                    }
+
+                    if (!string.Equals(originalVin, normalizedVin, StringComparison.Ordinal))
+                        result.WarningMessages.Add($"Line {line}: VIN was normalized to '{normalizedVin}'");
+
+                    if (!string.Equals(originalAcn, normalizedAcn, StringComparison.Ordinal))
+                        result.WarningMessages.Add($"Line {line}: SPG ACN was normalized to '{normalizedAcn}'");
+
+                    var existing = await _repository.FindByUniqueKeyAsync(dto.VIN, dto.GrantorFirstName, dto.GrantorLastName, dto.SpgAcn, cancellationToken);
+                    if (existing != null)
+                    {
+                        existing.GrantorFirstName = dto.GrantorFirstName;
                         existing.GrantorMiddleNames = dto.GrantorMiddleNames;
+                        existing.GrantorLastName = dto.GrantorLastName;
+                        existing.RegistrationStartDate = dto.RegistrationStartDate;
+                        existing.Duration = ConvertToEnum(dto.RegistrationDurationRaw);
+                        existing.SpgAcn = dto.SpgAcn;
                         existing.SpgOrganizationName = dto.SpgOrganizationName;
 
                         await _repository.UpdateAsync(existing, cancellationToken);
@@ -72,48 +94,49 @@ namespace PPSR.Registration.Infrastructure.Services
                     }
                     else
                     {
-                        // Add path
-                        var newRecord = new PpsrRegistration
+                        var entity = new PpsrRegistration
                         {
                             GrantorFirstName = dto.GrantorFirstName,
                             GrantorMiddleNames = dto.GrantorMiddleNames,
                             GrantorLastName = dto.GrantorLastName,
                             VIN = dto.VIN,
-                            RegistrationStartDate = dto.RegistrationStartDate.Date,
+                            RegistrationStartDate = dto.RegistrationStartDate,
                             Duration = ConvertToEnum(dto.RegistrationDurationRaw),
                             SpgAcn = dto.SpgAcn,
                             SpgOrganizationName = dto.SpgOrganizationName
                         };
 
-                        await _repository.AddAsync(newRecord, cancellationToken);
+                        await _repository.AddAsync(entity, cancellationToken);
                         result.AddedRecords++;
                     }
                 }
-                catch
+                catch (Exception ex)
                 {
                     result.InvalidRecords++;
+                    result.WarningMessages.Add($"Line {line}: {ex.Message}");
                 }
             }
 
-            if (lineIndex == 0)
-            {
-                result.SubmittedRecords = 0;
-            }
-            else
-            {
-                result.SubmittedRecords = lineIndex - 1;
-            }
+            result.SubmittedRecords = records.Count;
+            result.ProcessedAt = DateTime.UtcNow;
             return result;
         }
 
-        private static DateTime ParseDate(string dateStr)
+        private static DateTime ParseDateSmart(string input)
         {
-            return DateTime.ParseExact(dateStr, "yyyy-MM-dd", CultureInfo.InvariantCulture);
+            var formats = new[] { "yyyy-MM-dd", "dd/MM/yyyy", "MM/dd/yyyy", "d/M/yyyy", "dd-MM-yyyy", "d MMM yyyy", "dd MMM yyyy" };
+            if (DateTime.TryParseExact(input, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dt))
+                return DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+
+            if (DateTime.TryParse(input, out var fallback))
+                return DateTime.SpecifyKind(fallback, DateTimeKind.Utc);
+
+            throw new FormatException($"Unrecognized date format: {input}");
         }
 
-        private static int ParseDurationRaw(string raw)
+        private static int ParseDurationRaw(string? raw)
         {
-            return string.IsNullOrWhiteSpace(raw) ? 0 : (int)double.Parse(raw);
+            return int.TryParse(raw, out var val) ? val : 0;
         }
 
         private static RegistrationDuration ConvertToEnum(int value)
@@ -124,6 +147,24 @@ namespace PPSR.Registration.Infrastructure.Services
                 25 => RegistrationDuration.TwentyFiveYears,
                 _ => RegistrationDuration.NoEndDate
             };
+        }
+
+        private static string CleanName(string? name)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return "";
+
+            return Regex.Replace(name.Replace(",", " "), @"[^a-zA-Z\s]", "").Trim();
+        }
+
+        private static string NormalizeVin(string? vin)
+        {
+            return vin?.Trim().ToUpperInvariant() ?? "";
+        }
+
+        private static string NormalizeAcn(string? acn)
+        {
+            return acn?.Replace(" ", "").Trim() ?? "";
         }
     }
 }

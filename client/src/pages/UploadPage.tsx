@@ -21,23 +21,18 @@ function UploadPage() {
       setLoading(true);
       setError(null);
 
-      const response = await axios.post(
-        "https://localhost:7296/api/Registrations/upload",
-        formData,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-        }
-      );
+      const API_BASE = "https://localhost:7066";
+      const response = await axios.post(`${API_BASE}/api/Registrations/upload`, formData, {
+        headers: { "Content-Type": "multipart/form-data" }
+      });
 
       const resultData: UploadResult = response.data;
-
       setResult({
         ...resultData,
         processedAt: new Date().toISOString(),
       });
     } catch (err) {
+      console.log(err);
       setError("Upload failed. Please check if the backend server is running.");
     } finally {
       setLoading(false);
@@ -84,9 +79,16 @@ function UploadPage() {
               <li>Invalid Records: {result.invalidRecords}</li>
               <li>Total Processed: {result.processedRecords}</li>
               <li>Failed Records: {result.failedRecords}</li>
-              {result.warningMessages && (
-                <li className="text-yellow-500">
-                  Warnings: {result.warningMessages.join(", ")}
+              {result.warningMessages && result.warningMessages.length > 0 && (
+                <li className="mt-2">
+                  <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-4 rounded">
+                    <p className="font-medium mb-2">Warnings:</p>
+                    <ul className="list-disc list-inside text-sm space-y-1">
+                      {result.warningMessages.map((msg, idx) => (
+                        <li key={idx}>{msg}</li>
+                      ))}
+                    </ul>
+                  </div>
                 </li>
               )}
               <li>Processed At: {result.processedAt}</li>

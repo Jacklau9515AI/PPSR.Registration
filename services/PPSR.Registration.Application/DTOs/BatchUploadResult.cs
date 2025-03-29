@@ -13,5 +13,8 @@ namespace PPSR.Registration.Application.DTOs
         public int ProcessedRecords => AddedRecords + UpdatedRecords;
         public int AddedRecords { get; set; }
         public int UpdatedRecords { get; set; }
+        public DateTime ProcessedAt { get; set; } = DateTime.UtcNow;
+
+        public List<string> WarningMessages { get; set; } = new();
     }
 }

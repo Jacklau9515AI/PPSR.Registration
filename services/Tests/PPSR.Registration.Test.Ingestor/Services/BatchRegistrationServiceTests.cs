@@ -44,7 +44,10 @@ namespace PPSR.Registration.Test.Ingestor.Services
         public async Task ProcessCsvUploadAsync_ShouldUpdate_WhenVinMatchesAndRecordExists()
         {
             // Arrange
-            var csvStream = SampleCsvGenerator.ValidSingleRow();
+            var csv = new StringBuilder();
+            csv.AppendLine("Grantor First Name,Grantor Middle Names,Grantor Last Name,VIN,Registration start date,Registration duration,SPG ACN,SPG Organization Name");
+            csv.AppendLine("John,,Smith,ABC1234567890,2025-01-01,7,123456789,New Org Pty Ltd");
+            var csvStream = new MemoryStream(Encoding.UTF8.GetBytes(csv.ToString()));
 
             var existing = new PpsrRegistration
             {
@@ -52,19 +55,19 @@ namespace PPSR.Registration.Test.Ingestor.Services
                 GrantorFirstName = "John",
                 GrantorLastName = "Smith",
                 SpgAcn = "123456789",
-                SpgOrganizationName = "Old Org",
-                RegistrationStartDate = new DateTime(2020, 1, 1),
-                Duration = RegistrationDuration.SevenYears
+                SpgOrganizationName = "Old Name"
             };
 
-            PpsrRegistration? updatedEntity = null;
-
             var mockRepo = new Mock<IRegistrationRepository>();
-            mockRepo.Setup(r => r.FindByVinAsync("ABC1234567890", It.IsAny<CancellationToken>()))
+            mockRepo.Setup(r => r.FindByUniqueKeyAsync("ABC1234567890", "John", "Smith", "123456789", It.IsAny<CancellationToken>()))
                     .ReturnsAsync(existing);
 
             mockRepo.Setup(r => r.UpdateAsync(It.IsAny<PpsrRegistration>(), It.IsAny<CancellationToken>()))
-                    .Callback<PpsrRegistration, CancellationToken>((entity, _) => updatedEntity = entity)
+                    .Callback<PpsrRegistration, CancellationToken>((updated, _) =>
+                    {
+                        Assert.Equal("New Org Pty Ltd", updated.SpgOrganizationName);
+                        Assert.Equal(RegistrationDuration.SevenYears, updated.Duration);
+                    })
                     .Returns(Task.CompletedTask);
 
             var service = new BatchRegistrationService(mockRepo.Object);
@@ -76,10 +79,9 @@ namespace PPSR.Registration.Test.Ingestor.Services
             Assert.Equal(1, result.SubmittedRecords);
             Assert.Equal(1, result.UpdatedRecords);
             Assert.Equal(0, result.AddedRecords);
-            Assert.Equal(1, result.ProcessedRecords);
-            Assert.NotNull(updatedEntity);
-            Assert.Equal("New Org Pty Ltd", updatedEntity!.SpgOrganizationName); // Make sure it's updated
+            Assert.Equal(0, result.InvalidRecords);
         }
+    
 
         [Fact]
         public async Task ProcessCsvUploadAsync_ShouldSkipInvalidRows()

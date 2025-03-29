@@ -36,5 +36,15 @@ namespace PPSR.Registration.Infrastructure.Repositories
             _context.Registrations.Update(registration);
             await _context.SaveChangesAsync(cancellationToken);
         }
+
+        public async Task<PpsrRegistration?> FindByUniqueKeyAsync(string vin, string firstName, string lastName, string spgAcn, CancellationToken cancellationToken)
+        {
+            return await _context.Registrations.FirstOrDefaultAsync(r =>
+                r.VIN == vin &&
+                r.GrantorFirstName == firstName &&
+                r.GrantorLastName == lastName &&
+                r.SpgAcn == spgAcn,
+                cancellationToken);
+        }
     }
 }
