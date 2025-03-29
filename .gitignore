@@ -1,64 +1,56 @@
 # ===============================
 # Frontend (Vite + React + TS)
 # ===============================
-clientnode_modules
-clientdist
-client.env
-client.DS_Store
-client.eslintcache
+client/node_modules/
+client/dist/
+client/.env
+client/.DS_Store
+client/.eslintcache
 
 # Vite dev server cache
-client.vite
+client/.vite/
 
 # Log files
-clientnpm-debug.log
-clientyarn-debug.log
-clientyarn-error.log
-clientpnpm-debug.log
+client/npm-debug.log*
+client/yarn-debug.log*
+client/yarn-error.log*
+client/pnpm-debug.log*
 
-# EditorOS files
-client.idea
-client.vscode
-client.log
-
-# Tailwind generated files (if any)
-clientpostcss.config.cjs
-clienttailwind.config.js
+# Editor/OS files
+client/.idea/
+client/.vscode/
+client/*.log
 
 # ===============================
 # Backend (.NET)
 # ===============================
-servicesbin
-servicesobj
-services.vs
-services.vscode
-services.DS_Store
+services/**/bin/
+services/**/obj/
+services/**/.vs/
+services/**/.vscode/
+services/**/.DS_Store
+services/**/TestResults/
+services/**/appsettings.Development.json
+services/**/.env
+services/**/.secrets/
+services/**/*.user
+services/**/*.suo
+services/**/*.userosscache
+services/**/*.sln.docstates
 
-# Build output
-servicesTestResults
-services.user
-services.suo
-services.userosscache
-services.sln.docstates
-
-# Environment
-services.env
-services.secrets
-servicesappsettings.Development.json
-
-# Rider  VS Code  Visual Studio
-.idea
-.sln.iml
-.vscode
-.vs
-
-# Dotnet temp files
-.dotCover
+# ===============================
+# Editor & Global Files
+# ===============================
+.idea/
+.vscode/
+.vs/
+*.dotCover
+*.sln.iml
 
 # ===============================
 # Root level
 # ===============================
 .env
-.log
+*.log
 .DS_Store
-.swp
+*.swp

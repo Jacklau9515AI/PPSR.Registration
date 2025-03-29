@@ -1,0 +1,6 @@
+@PPSR.Registration.WebApi.Ingestor_HostAddress = http://localhost:5120
+
+GET {{PPSR.Registration.WebApi.Ingestor_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
