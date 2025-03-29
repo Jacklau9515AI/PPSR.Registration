@@ -107,11 +107,11 @@ Ready for review or further extension as a production-grade system.
 ---
 
 ## Demo Preview
-(GIF)
+![LG](https://github.com/user-attachments/assets/a1b2513a-fd12-43c8-bc0e-a644773e2429)
 
 <sub>This GIF demonstrates selecting a CSV file, uploading it, and viewing the result summary.</sub>
 
-(img.png)
+![Screenshot 2025-03-29 183447](https://github.com/user-attachments/assets/5165be17-26be-4689-a091-07b2d494a9e1)
 
 <sub>After a successful upload, normalized records are stored in the PostgreSQL table.</sub>
 
